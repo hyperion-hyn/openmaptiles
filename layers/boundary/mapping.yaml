@@ -1,0 +1,112 @@
+generalized_tables:
+  boundary_linestring_gen13:
+    source: boundary_linestring_gen12
+    sql_filter: admin_level <= 2
+    tolerance: ZRES2
+  boundary_linestring_gen12:
+    source: boundary_linestring_gen11
+    sql_filter: admin_level <= 4
+    tolerance: ZRES3
+  boundary_linestring_gen11:
+    source: boundary_linestring_gen10
+    sql_filter: admin_level <= 4
+    tolerance: ZRES4
+  boundary_linestring_gen10:
+    source: boundary_linestring_gen9
+    sql_filter: admin_level <= 4
+    tolerance: ZRES5
+  boundary_linestring_gen9:
+    source: boundary_linestring_gen8
+    sql_filter: admin_level <= 4
+    tolerance: ZRES6
+  boundary_linestring_gen8:
+    source: boundary_linestring_gen7
+    sql_filter: admin_level <= 4
+    tolerance: ZRES7
+  boundary_linestring_gen7:
+    source: boundary_linestring_gen6
+    sql_filter: admin_level <= 4
+    tolerance: ZRES8
+  boundary_linestring_gen6:
+    source: boundary_linestring_gen5
+    sql_filter: admin_level <= 6
+    tolerance: ZRES9
+  boundary_linestring_gen5:
+    source: boundary_linestring_gen4
+    sql_filter: admin_level <= 6
+    tolerance: ZRES10
+  boundary_linestring_gen4:
+    source: boundary_linestring_gen3
+    sql_filter: admin_level <= 6
+    tolerance: ZRES11
+  boundary_linestring_gen3:
+    source: boundary_linestring_gen2
+    sql_filter: admin_level <= 8
+    tolerance: ZRES12
+  boundary_linestring_gen2:
+    source: boundary_linestring_gen1
+    sql_filter: admin_level <= 10
+    tolerance: ZRES13
+  boundary_linestring_gen1:
+    source: boundary_linestring
+    sql_filter: admin_level <= 10
+    tolerance: ZRES14
+
+tables:
+  boundary_relation:
+    fields:
+    - name: osm_id
+      type: id
+    - name: admin_level
+      key: admin_level
+      type: integer
+    - name: name
+      key: name
+      type: string
+    - name: iso3166_1_alpha2
+      key: 'ISO3166-1:alpha2'
+      type: string
+    mapping:
+      boundary:
+      - administrative
+    type: relation
+    relation_types:
+    - boundary
+
+  boundary_relation_member:
+    fields:
+    - name: osm_id
+      type: id
+    - name: member
+      type: member_id
+    - name: index
+      type: member_index
+    - name: role
+      type: member_role
+    - name: type
+      type: member_type
+    mapping:
+      __any__: [__any__]
+    type: relation_member
+    relation_types: 
+    - boundary
+
+  boundary_linestring:
+    fields:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: admin_level
+      key: admin_level
+      type: integer
+    - name: disputed
+      key: disputed
+      type: bool
+    - name: maritime
+      key: maritime
+      type: bool
+    mapping:
+      boundary:
+      - administrative
+    type: linestring

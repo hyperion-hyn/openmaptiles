@@ -1,114 +1,182 @@
 
+-- Handle boundary country
+CREATE OR REPLACE FUNCTION boundary_country() RETURNS VOID AS
+$$
+DECLARE
+    boundary_gen_table RECORD;
+    country_code       RECORD;
+BEGIN
+    FOR boundary_gen_table IN SELECT tablename
+                              FROM pg_tables
+                              WHERE schemaname = 'public' AND tablename LIKE 'osm_boundary_linestring_gen_%'
+        LOOP
+            EXECUTE 'ALTER TABLE ' || quote_ident(boundary_gen_table.tablename) || ' ADD COLUMN IF NOT EXISTS country VARCHAR[];';
+            EXECUTE 'UPDATE ' || quote_ident(boundary_gen_table.tablename) || ' SET country = NULL;';
+        END LOOP;
 
--- etldoc: ne_110m_admin_0_boundary_lines_land  -> boundary_z0
+    FOR country_code IN SELECT osm_id, iso3166_1_alpha2 code
+                        FROM osm_boundary_relation
+                        WHERE admin_level = 2 AND iso3166_1_alpha2 IS NOT NULL
+        LOOP
+            FOR boundary_gen_table IN SELECT tablename
+                                      FROM pg_tables
+                                      WHERE schemaname = 'public' AND tablename LIKE 'osm_boundary_linestring_gen_%'
+                LOOP
+                    EXECUTE 'UPDATE ' || quote_ident(boundary_gen_table.tablename) ||
+                            E' SET country = ARRAY_APPEND(country, \'' || country_code.code ||
+                            E'\') WHERE osm_id IN (SELECT member FROM osm_boundary_relation_member WHERE osm_id = ' ||
+                            country_code.osm_id::text || ')';
+                END LOOP;
+        END LOOP;
+END
+$$ LANGUAGE plpgsql;
 
+SELECT boundary_country();
+
+
+-- etldoc: osm_boundary_linestring_gen13 -> boundary_z0
 CREATE OR REPLACE VIEW boundary_z0 AS (
-    SELECT geometry, 2 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_110m_admin_0_boundary_lines_land
-);
-
--- etldoc: ne_50m_admin_0_boundary_lines_land  -> boundary_z1
--- etldoc: ne_50m_admin_1_states_provinces_lines -> boundary_z1
-
-CREATE OR REPLACE VIEW boundary_z1 AS (
-    SELECT geometry, 2 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_50m_admin_0_boundary_lines_land
-    UNION ALL
-    SELECT geometry, 4 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_50m_admin_1_states_provinces_lines
-);
-
-
--- etldoc: ne_50m_admin_0_boundary_lines_land -> boundary_z3
--- etldoc: ne_50m_admin_1_states_provinces_lines -> boundary_z3
-
-CREATE OR REPLACE VIEW boundary_z3 AS (
-    SELECT geometry, 2 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_50m_admin_0_boundary_lines_land
-    UNION ALL
-    SELECT geometry, 4 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_50m_admin_1_states_provinces_lines
-);
-
-
--- etldoc: ne_10m_admin_0_boundary_lines_land -> boundary_z4
--- etldoc: ne_10m_admin_1_states_provinces_lines -> boundary_z4
--- etldoc: osm_border_linestring_gen10 -> boundary_z4
-
-CREATE OR REPLACE VIEW boundary_z4 AS (
-    SELECT geometry, 2 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_10m_admin_0_boundary_lines_land
-    WHERE featurecla <> 'Lease limit'
-    UNION ALL
-    SELECT geometry, 4 AS admin_level, false AS disputed, false AS maritime
-    FROM ne_10m_admin_1_states_provinces_lines
-    WHERE min_zoom <= 5
+    SELECT geometry, admin_level, disputed, maritime
+    FROM osm_boundary_linestring_gen13
+    WHERE admin_level = 2 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
     UNION ALL
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen10
-    WHERE maritime=true AND admin_level <= 2
+    FROM china_boundary_linestring_gen7
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen9 -> boundary_z5
+-- etldoc: osm_boundary_linestring_gen12 -> boundary_z1
+CREATE OR REPLACE VIEW boundary_z1 AS (
+    SELECT geometry, admin_level, disputed, maritime
+    FROM osm_boundary_linestring_gen12
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen7
+    WHERE admin_level = 2
+);
 
+
+-- etldoc: osm_boundary_linestring_gen11 -> boundary_z3
+CREATE OR REPLACE VIEW boundary_z3 AS (
+    SELECT geometry, admin_level, disputed, maritime
+    FROM osm_boundary_linestring_gen11
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen6
+    WHERE admin_level = 2
+);
+
+
+-- etldoc: osm_boundary_linestring_gen10 -> boundary_z4
+CREATE OR REPLACE VIEW boundary_z4 AS (
+    SELECT geometry, admin_level, disputed, maritime
+    FROM osm_boundary_linestring_gen10
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen5
+    WHERE admin_level = 2
+);
+
+-- etldoc: osm_boundary_linestring_gen9 -> boundary_z5
 CREATE OR REPLACE VIEW boundary_z5 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen9
-    WHERE admin_level <= 4
+    FROM osm_boundary_linestring_gen9
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen4
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen8 -> boundary_z6
+-- etldoc: osm_boundary_linestring_gen8 -> boundary_z6
 CREATE OR REPLACE VIEW boundary_z6 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen8
-    WHERE admin_level <= 4
+    FROM osm_boundary_linestring_gen8
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen3
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen7 -> boundary_z7
+-- etldoc: osm_boundary_linestring_gen7 -> boundary_z7
 CREATE OR REPLACE VIEW boundary_z7 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen7
-    WHERE admin_level <= 4
+    FROM osm_boundary_linestring_gen7
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen2
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen6 -> boundary_z8
+-- etldoc: osm_boundary_linestring_gen6 -> boundary_z8
 CREATE OR REPLACE VIEW boundary_z8 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen6
-    WHERE admin_level <= 4
+    FROM osm_boundary_linestring_gen6
+    WHERE admin_level <= 4 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring_gen1
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen5 -> boundary_z9
+-- etldoc: osm_boundary_linestring_gen5 -> boundary_z9
 CREATE OR REPLACE VIEW boundary_z9 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen5
-    WHERE admin_level <= 6
+    FROM osm_boundary_linestring_gen5
+    WHERE admin_level <= 6 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen4 -> boundary_z10
+-- etldoc: osm_boundary_linestring_gen4 -> boundary_z10
 CREATE OR REPLACE VIEW boundary_z10 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen4
-    WHERE admin_level <= 6
+    FROM osm_boundary_linestring_gen4
+    WHERE admin_level <= 6 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen3 -> boundary_z11
+-- etldoc: osm_boundary_linestring_gen3 -> boundary_z11
 CREATE OR REPLACE VIEW boundary_z11 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen3
-    WHERE admin_level <= 8
+    FROM osm_boundary_linestring_gen3
+    WHERE admin_level <= 8 AND (array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country)))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen2 -> boundary_z12
+-- etldoc: osm_boundary_linestring_gen2 -> boundary_z12
 CREATE OR REPLACE VIEW boundary_z12 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen2
+    FROM osm_boundary_linestring_gen2
+    WHERE array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring
+    WHERE admin_level = 2
 );
 
--- etldoc: osm_border_linestring_gen1 -> boundary_z13
+-- etldoc: osm_boundary_linestring_gen1 -> boundary_z13
 CREATE OR REPLACE VIEW boundary_z13 AS (
     SELECT geometry, admin_level, disputed, maritime
-    FROM osm_border_linestring_gen1
+    FROM osm_boundary_linestring_gen1
+    WHERE array_length(country, 1) IS NULL OR NOT ('CN' = ANY(country) OR 'TW' = ANY(country))
+    UNION ALL
+    SELECT geometry, admin_level, disputed, maritime
+    FROM china_boundary_linestring
+    WHERE admin_level = 2
 );
 
 -- etldoc: layer_boundary[shape=record fillcolor=lightpink, style="rounded,filled",
@@ -157,3 +225,44 @@ RETURNS TABLE(geometry geometry, admin_level int, disputed int, maritime int) AS
         SELECT * FROM boundary_z13 WHERE geometry && bbox AND zoom_level >= 13
     ) AS zoom_levels;
 $$ LANGUAGE SQL IMMUTABLE;
+
+
+-- Handle updates
+
+CREATE SCHEMA IF NOT EXISTS boundary;
+
+CREATE TABLE IF NOT EXISTS boundary.updates(id serial primary key, t text, unique (t));
+CREATE OR REPLACE FUNCTION boundary.flag() RETURNS trigger AS $$
+BEGIN
+    INSERT INTO boundary.updates(t) VALUES ('y')  ON CONFLICT(t) DO NOTHING;
+    RETURN null;
+END;
+$$ language plpgsql;
+
+CREATE OR REPLACE FUNCTION boundary.refresh() RETURNS trigger AS $$
+BEGIN
+    RAISE LOG 'Refresh boundary';
+    PERFORM boundary_country();
+    DELETE FROM boundary.updates;
+    RETURN null;
+END;
+$$ language plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_flag ON osm_boundary_linestring;
+CREATE TRIGGER trigger_flag
+    AFTER INSERT OR UPDATE ON osm_boundary_linestring
+    FOR EACH STATEMENT
+    EXECUTE PROCEDURE boundary.flag();
+
+DROP TRIGGER IF EXISTS trigger_flag ON osm_boundary_relation;
+CREATE TRIGGER trigger_flag
+    AFTER INSERT OR UPDATE OR DELETE ON osm_boundary_relation
+    FOR EACH STATEMENT
+    EXECUTE PROCEDURE boundary.flag();
+
+DROP TRIGGER IF EXISTS trigger_refresh ON boundary.updates;
+CREATE CONSTRAINT TRIGGER trigger_refresh
+    AFTER INSERT ON boundary.updates
+    INITIALLY DEFERRED
+    FOR EACH ROW
+    EXECUTE PROCEDURE boundary.refresh();
