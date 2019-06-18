@@ -8,3 +8,6 @@ Read the layer documentation at **http://openmaptiles.org/schema#building**
 
 ### ETL diagram
 ![ETL diagram for building](etl_diagram.png?raw=true)
+
+## Difference for map3 style
+The buildings are loaded from zoom 14.
