@@ -1,5 +1,21 @@
 
 -- Handle boundary country
+CREATE OR REPLACE FUNCTION boundary_country_init() RETURNS VOID AS
+$$
+DECLARE
+    boundary_gen_table RECORD;
+BEGIN
+    FOR boundary_gen_table IN SELECT tablename
+                              FROM pg_tables
+                              WHERE schemaname = 'public' AND tablename LIKE 'osm_boundary_linestring_gen_%'
+        LOOP
+            EXECUTE 'ALTER TABLE ' || quote_ident(boundary_gen_table.tablename) || ' ADD COLUMN IF NOT EXISTS country VARCHAR[];';
+            EXECUTE 'CREATE INDEX IF NOT EXISTS ' || quote_ident(boundary_gen_table.tablename) || '_country_idx ON ' || quote_ident(boundary_gen_table.tablename) || '(country);';
+        END LOOP;
+END
+$$ LANGUAGE plpgsql;
+SELECT boundary_country_init();
+
 CREATE OR REPLACE FUNCTION boundary_country() RETURNS VOID AS
 $$
 DECLARE
@@ -10,7 +26,6 @@ BEGIN
                               FROM pg_tables
                               WHERE schemaname = 'public' AND tablename LIKE 'osm_boundary_linestring_gen_%'
         LOOP
-            EXECUTE 'ALTER TABLE ' || quote_ident(boundary_gen_table.tablename) || ' ADD COLUMN IF NOT EXISTS country VARCHAR[];';
             EXECUTE 'UPDATE ' || quote_ident(boundary_gen_table.tablename) || ' SET country = NULL;';
         END LOOP;
 
